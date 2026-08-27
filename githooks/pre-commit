@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Last-resort safety net: this repo is public, so block commits whose staged
+# lines match common secret patterns (private keys, cloud access keys,
+# password/token/secret assignments with a real-looking value). This does
+# NOT replace judgment — see CLAUDE.md / README.md for the actual rules on
+# what must never be committed. Enable per clone: git config core.hooksPath githooks
+set -euo pipefail
+
+fail=0
+
+# Only look at added lines (+...) in the staged diff, skip the "+++" file headers.
+diff="$(git diff --cached -U0 --no-color -- . ':!githooks/pre-commit')"
+
+check_pattern() {
+  local label="$1" pattern="$2"
+  local hits
+  hits="$(grep -nE -- "$pattern" <<<"$diff" | grep -E '^[0-9]+:\+[^+]' || true)"
+  if [[ -n "$hits" ]]; then
+    echo "ERROR: possible $label found in staged changes:" >&2
+    echo "$hits" | sed 's/^/    /' >&2
+    fail=1
+  fi
+}
+
+check_pattern "private key"            '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+check_pattern "AWS access key ID"      'AKIA[0-9A-Z]{16}'
+check_pattern "password/secret/token assignment with a value" \
+  '(password|passwd|secret|token|api[_-]?key)[[:space:]]*[:=][[:space:]]*[^[:space:]"'"'"']{6,}'
+check_pattern "long hex/base64-looking blob (possible key)" \
+  '[A-Za-z0-9+/]{40,}={0,2}'
+
+if [[ "$fail" -ne 0 ]]; then
+  echo "" >&2
+  echo "Commit blocked. This repo is PUBLIC — see CLAUDE.md before committing." >&2
+  echo "If this is a false positive, fix the pattern or use 'git commit --no-verify'" >&2
+  echo "only after you are certain nothing sensitive is being committed." >&2
+fi
+
+exit "$fail"
