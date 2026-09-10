@@ -37,6 +37,19 @@
    자동으로 따라오지 않으므로, 첫 작업 전에 `git config core.hooksPath
    githooks`를 반드시 실행한다.
 
+## 새 기기에서 push 가 안 될 때
+
+이 저장소의 remote 는 HTTPS 라 push 에 자격증명이 필요한데, `git` 의 credential
+helper 는 기기마다 설정돼 있을 수도 아닐 수도 있다. `gh` 로 로그인만 돼 있다면
+(`gh auth status` 로 확인) 전역 설정을 건드리지 않고 그 자리에서만 빌려 쓸 수 있다.
+
+```bash
+git -c credential.helper='!gh auth git-credential' push
+```
+
+항구적으로 쓰려면 `gh auth setup-git` 이 전역 설정에 helper 를 넣는다. 위 형태는
+그걸 원하지 않을 때(남의 기기, 일회성 작업) 쓴다.
+
 ## `/log` 슬래시 명령
 
 `.claude/commands/log.md`에 정의된 `/log`를 호출하면 오늘 날짜 파일에 세션의
